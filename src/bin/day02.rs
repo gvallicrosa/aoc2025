@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 struct Range {
     start: u64,
     stop: u64,
@@ -18,7 +16,7 @@ impl Range {
                 }
             }
         }
-        return sum;
+        sum
     }
 
     fn invalid_ids_sum_part2(&self) -> u64 {
@@ -42,7 +40,7 @@ impl Range {
                 }
             }
         }
-        return sum;
+        sum
     }
 }
 
@@ -50,7 +48,7 @@ fn main() -> Result<(), std::io::Error> {
     let mut ranges = Vec::new();
 
     // for line in include_str!("../input_example.txt")
-        for line in include_str!("../input.txt")
+    for line in include_str!("../input.txt")
         .replace("\r\n", "\n")
         .split("\n")
     {

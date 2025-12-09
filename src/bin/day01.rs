@@ -14,7 +14,7 @@ fn main() -> Result<(), std::io::Error> {
     {
         println!("{}", line);
         let value = line[1..].parse::<u16>().unwrap();
-        if line.chars().next().unwrap() == 'R' {
+        if line.starts_with('R') {
             rotations.push(Direction::Right(value));
         } else {
             rotations.push(Direction::Left(value));
