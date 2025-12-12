@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 #[derive(PartialEq, Debug)]
 struct Point {
     x: i64,
@@ -31,51 +33,138 @@ fn main() -> Result<(), std::io::Error> {
         });
     }
 
+    // pre-compute distances and sort by smallest
+    let mut distances = Vec::new();
+    for i in 0..boxes.len() {
+        for j in i + 1..boxes.len() {
+            distances.push((i, j, boxes[i].distance(&boxes[j])));
+        }
+    }
+    distances.sort_by(|(_, _, a_dis), (_, _, b_dis)| a_dis.cmp(b_dis));
+
     // part 1
     {
-        // pre-compute distances and sort by smallest
-        let mut distances = Vec::new();
-        for i in 0..boxes.len() {
-            for j in i + 1..boxes.len() {
-                distances.push((i, j, boxes[i].distance(&boxes[j])));
-            }
-        }
-        distances.sort_by(|(_, _, a_dis), (_, _, b_dis)| a_dis.cmp(b_dis));
-
         // keep putting cables
-        let mut circuits: Vec<Vec<usize>> = Vec::new();
-        let mut index = 0;
-        for _ in 0..iterations {
-            'outer: loop {
-                let (box_a, box_b, _) = distances[index];
-                for circuit in circuits.iter_mut() {
-                    if circuit.contains(&box_a) && circuit.contains(&box_b) {
-                        // already in circuit => try next
-                        index += 1;
-                        continue 'outer;
-                    } else if circuit.contains(&box_a) {
-                        // partially in circuit
-                        circuit.push(box_b);
-                        break 'outer;
-                    } else if circuit.contains(&box_b) {
-                        circuit.push(box_a);
-                        break 'outer;
-                    }
+        let mut circuits: Vec<HashSet<usize>> = Vec::new();
+        'outer: for (box_a, box_b, _) in distances.iter().take(iterations) {
+            println!("box_a {} box_b {}", box_a, box_b);
+            let mut a_in = None;
+            let mut b_in = None;
+            for (i, circuit) in circuits.iter_mut().enumerate() {
+                if circuit.contains(box_a) && circuit.contains(box_b) {
+                    // already in same circuit, cannot add cable => try next shortest distance
+                    // add cable anyway...
+                    continue 'outer;
+                } else if circuit.contains(box_a) {
+                    // partially in circuit
+                    assert!(a_in.is_none());
+                    a_in = Some(i);
+                } else if circuit.contains(box_b) {
+                    // partially in circuit
+                    assert!(b_in.is_none());
+                    b_in = Some(i);
                 }
-                // it was not in any circuit => new circuit
-                circuits.push(vec![box_a, box_b]);
-                break 'outer;
             }
-            index += 1;
+            // check
+            match (a_in, b_in) {
+                (None, None) => {
+                    // it was not in any circuit => new circuit
+                    println!("  >> new circuit");
+                    circuits.push(HashSet::from([*box_a, *box_b]));
+                }
+                (Some(ca), None) => {
+                    println!("  >> add {} to circuit {}", box_b, ca);
+                    circuits[ca].insert(*box_b);
+                }
+                (None, Some(cb)) => {
+                    println!("  >> add {} to circuit {}", box_a, cb);
+                    circuits[cb].insert(*box_a);
+                }
+                (Some(ca), Some(cb)) => {
+                    // remove both circuits from vector
+                    let left = std::cmp::min(ca, cb);
+                    let right = std::cmp::max(ca, cb);
+                    println!("  >> join {} and {}", left, right);
+                    let ca = circuits.remove(right);
+                    let cb = circuits.remove(left);
+
+                    // join them and add again
+                    let union = ca.union(&cb).copied().collect();
+                    circuits.push(union);
+                }
+            }
+            println!("  {:?}", circuits);
         }
 
         let mut sizes: Vec<_> = circuits.iter().map(|v| v.len()).collect();
         sizes.sort();
+        dbg!(&sizes);
         dbg!(sizes.iter().rev().take(3).product::<usize>());
     }
 
     // part 2
-    {}
+    {
+        // keep putting cables
+        let mut circuits: Vec<HashSet<usize>> = Vec::new();
+        'outer: for (box_a, box_b, _) in distances.iter() {
+            println!("box_a {} box_b {}", box_a, box_b);
+            let mut a_in = None;
+            let mut b_in = None;
+            for (i, circuit) in circuits.iter_mut().enumerate() {
+                if circuit.contains(box_a) && circuit.contains(box_b) {
+                    // already in same circuit, cannot add cable => try next shortest distance
+                    // add cable anyway...
+                    continue 'outer;
+                } else if circuit.contains(box_a) {
+                    // partially in circuit
+                    assert!(a_in.is_none());
+                    a_in = Some(i);
+                } else if circuit.contains(box_b) {
+                    // partially in circuit
+                    assert!(b_in.is_none());
+                    b_in = Some(i);
+                }
+            }
+            // check
+            match (a_in, b_in) {
+                (None, None) => {
+                    // it was not in any circuit => new circuit
+                    println!("  >> new circuit");
+                    circuits.push(HashSet::from([*box_a, *box_b]));
+                }
+                (Some(ca), None) => {
+                    println!("  >> add {} to circuit {}", box_b, ca);
+                    circuits[ca].insert(*box_b);
+                }
+                (None, Some(cb)) => {
+                    println!("  >> add {} to circuit {}", box_a, cb);
+                    circuits[cb].insert(*box_a);
+                }
+                (Some(ca), Some(cb)) => {
+                    // remove both circuits from vector
+                    let left = std::cmp::min(ca, cb);
+                    let right = std::cmp::max(ca, cb);
+                    println!("  >> join {} and {}", left, right);
+                    let ca = circuits.remove(right);
+                    let cb = circuits.remove(left);
+
+                    // join them and add again
+                    let union = ca.union(&cb).copied().collect();
+                    circuits.push(union);
+                }
+            }
+            println!("  {:?}", circuits);
+            if circuits.len() == 1 && circuits[0].len() == boxes.len() {
+                println!("!!! {:?} and {:?}", boxes[*box_a], boxes[*box_b]);
+                dbg!(boxes[*box_a].x * boxes[*box_b].x);
+                break;
+            }
+        }
+
+        let mut sizes: Vec<_> = circuits.iter().map(|v| v.len()).collect();
+        sizes.sort();
+        dbg!(&sizes);
+    }
 
     Ok(())
 }
